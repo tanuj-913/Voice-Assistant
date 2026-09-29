@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-void: #04070d;
+  --color-void-2: #070d17;
+  --color-hud: #2dd4ff;
+  --color-hud-dim: #1a7f9c;
+  --font-display: 'SF Pro Display', -apple-system, system-ui, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: transparent;
+  color: #e6f4f9;
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  /* The Tauri overlay window is transparent; the app paints its own backdrop. */
+  user-select: none;
+}
+
+/*
+ * Film grain. Flat gradients on an OLED-ish dark panel band badly; a faint
+ * noise layer breaks the banding up and stops the background reading as a
+ * cheap CSS gradient.
+ */
+.hud-grain {
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(45, 212, 255, 0.18);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(45, 212, 255, 0.34);
+}

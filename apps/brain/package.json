@@ -1,0 +1,26 @@
+{
+  "name": "@assistant/brain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types src/index.ts",
+    "build": "tsc -b",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@assistant/core": "workspace:*",
+    "@assistant/db": "workspace:*",
+    "@assistant/schemas": "workspace:*",
+    "@assistant/tools": "workspace:*",
+    "@assistant/voice": "workspace:*",
+    "hono": "^4.6.0",
+    "neverthrow": "^8.0.0",
+    "zod": "^4.0.0"
+  }
+}

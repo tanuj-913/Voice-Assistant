@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ollama list)",
+      "Bash(ollama ps)",
+      "Bash(ollama show:*)",
+      "Bash(curl -s http://127.0.0.1:11434/*)",
+      "Bash(curl -s --max-time * http://127.0.0.1:11434/*)",
+      "Bash(curl -s http://127.0.0.1:4318/*)",
+      "Bash(curl -s -X POST http://127.0.0.1:4318/*)",
+      "Bash(curl -s http://127.0.0.1:4317/*)",
+      "Bash(pnpm run doctor)",
+      "Bash(pnpm test:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(npx turbo run typecheck:*)",
+      "Bash(npx turbo run lint:*)",
+      "Bash(npx tsc --noEmit:*)",
+      "Bash(npx eslint:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(pmset -g:*)",
+      "Bash(vm_stat)",
+      "Bash(top -l 1 -n 0)"
+    ]
+  }
+}

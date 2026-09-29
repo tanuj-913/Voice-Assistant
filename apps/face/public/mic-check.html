@@ -1,0 +1,130 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Assistant mic check</title>
+<style>
+  body { background:#07070d; color:#dfe3ff; font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; margin:0; padding:24px; }
+  h1 { font-size:15px; letter-spacing:.18em; text-transform:uppercase; color:#9aa0d0; font-weight:600; margin:0 0 18px; }
+  table { border-collapse:collapse; margin-bottom:18px; }
+  td { padding:3px 18px 3px 0; }
+  td:first-child { color:#7c82ad; }
+  .n { font-variant-numeric:tabular-nums; }
+  .bar { height:14px; background:#15162a; position:relative; width:520px; margin:2px 0 10px; }
+  .bar i { position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg,#4b3df5,#b06cf7); }
+  .bar b { position:absolute; top:-3px; bottom:-3px; width:2px; background:#ff5a7a; }
+  .bar b.c { background:#f7c948; }
+  #log { white-space:pre; line-height:1.7; max-height:340px; overflow:auto; border-top:1px solid #23233d; padding-top:10px; }
+  .ok { color:#57e08f; } .bad { color:#ff6b81; } .warn { color:#f7c948; }
+  button { background:#2a2a4a; color:#dfe3ff; border:0; padding:9px 18px; font:inherit; cursor:pointer; }
+</style>
+<h1>Assistant — microphone check</h1>
+<button id="go">Start listening</button>
+<div id="panel" style="display:none">
+<table>
+  <tr><td>device</td><td id="dev" class="n">—</td></tr>
+  <tr><td>context rate</td><td id="rate" class="n">—</td></tr>
+  <tr><td>frames received</td><td id="frames" class="n">0</td></tr>
+  <tr><td>rms now</td><td id="rms" class="n">—</td></tr>
+  <tr><td>brightness</td><td id="bright" class="n">—</td></tr>
+  <tr><td>dominant freq</td><td id="hz" class="n">—</td></tr>
+  <tr><td>voice-like?</td><td id="voiced" class="n">—</td></tr>
+  <tr><td>rms peak (5s)</td><td id="peak" class="n">—</td></tr>
+  <tr><td>noise floor</td><td id="floor" class="n">—</td></tr>
+  <tr><td>start gate</td><td id="start" class="n">—</td></tr>
+  <tr><td>continue gate</td><td id="cont" class="n">—</td></tr>
+  <tr><td>state</td><td id="state" class="n">—</td></tr>
+</table>
+<div class="bar"><i id="fill"></i><b id="mstart"></b><b class="c" id="mcont"></b></div>
+<div style="color:#7c82ad;margin-bottom:8px">red = start gate, yellow = continue gate. Bar is rms on a 0–0.15 scale.</div>
+<div id="log"></div>
+</div>
+<script type="module">
+// Same constants as apps/face/src/lib/vad.ts — this page must judge exactly as the app does.
+const FLOOR_RISE = 0.004, FLOOR_FALL = 0.08;
+const START_MULTIPLE = 3.2, CONTINUE_MULTIPLE = 1.7, CONTINUE_ABSOLUTE_RATIO = 0.6;
+const SPEECH_THRESHOLD = 0.004, SILENCE_HOLD_MS = 850, MIN_UTTERANCE_MS = 320, MAX_UTTERANCE_MS = 30000;
+const VOICE_BRIGHTNESS_MIN = 0.04, VOICE_BRIGHTNESS_MAX = 1.9, START_FRAMES = 5;
+const dominantHz = (b, rate) => (Math.asin(Math.min(2, Math.max(0, b)) / 2) * rate) / Math.PI;
+const $ = (id) => document.getElementById(id);
+const log = (msg, cls = '') => {
+  const t = new Date().toTimeString().slice(0, 8);
+  $('log').insertAdjacentHTML('afterbegin', `<span class="${cls}">${t}  ${msg}</span>\n`);
+};
+$('go').onclick = async () => {
+  $('go').disabled = true;
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: {
+      echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  } catch (e) { log('getUserMedia FAILED: ' + e.name + ' — ' + e.message, 'bad'); return; }
+  $('panel').style.display = 'block';
+  const track = stream.getAudioTracks()[0];
+  $('dev').textContent = track.label || '(unlabelled)';
+  const settings = track.getSettings();
+  log('track: ' + JSON.stringify(settings));
+  const ctx = new AudioContext({ sampleRate: 16000 });
+  $('rate').textContent = ctx.sampleRate + ' Hz' + (ctx.sampleRate !== 16000 ? '  ← not 16k' : '');
+  await ctx.audioWorklet.addModule('/pcm-worklet.js');
+  const node = new AudioWorkletNode(ctx, 'pcm-collector');
+  ctx.createMediaStreamSource(stream).connect(node);
+  node.connect(ctx.destination); // keep the graph alive; worklet emits no output
+
+  let floor = 0.006, speaking = false, speechMs = 0, voicedMs = 0, silenceMs = 0, frames = 0;
+  let candidate = 0, lastBright = 0;
+  let peak = 0, peakAt = performance.now();
+  node.port.onmessage = ({ data }) => {
+    const { samples, rms, brightness } = data;
+    lastBright = brightness;
+    frames++;
+    const frameMs = (samples.length / ctx.sampleRate) * 1000;
+    if (!speaking) floor = floor + (rms - floor) * (rms > floor ? FLOOR_RISE : FLOOR_FALL);
+    const startAt = Math.max(SPEECH_THRESHOLD, floor * START_MULTIPLE);
+    const contAt = Math.max(SPEECH_THRESHOLD * CONTINUE_ABSOLUTE_RATIO, floor * CONTINUE_MULTIPLE);
+    const loud = rms > (speaking ? contAt : startAt);
+    const voiceLike = brightness >= VOICE_BRIGHTNESS_MIN && brightness <= VOICE_BRIGHTNESS_MAX;
+    const isSpeech = speaking ? loud : loud && voiceLike;
+    if (isSpeech) {
+      if (!speaking) {
+        candidate++;
+        if (candidate < START_FRAMES) return;
+        speaking = true; speechMs = 0; voicedMs = candidate * frameMs; candidate = 0;
+        log('speech STARTED  rms=' + rms.toFixed(4) + '  gate=' + startAt.toFixed(4)
+            + '  ' + Math.round(dominantHz(brightness, ctx.sampleRate)) + 'Hz', 'ok');
+      } else voicedMs += frameMs;
+      silenceMs = 0;
+    } else if (speaking) silenceMs += frameMs;
+    else if (loud && !voiceLike) { candidate = 0; if (frames % 40 === 0) log('rejected, not voice-like: rms=' + rms.toFixed(4) + '  ' + Math.round(dominantHz(brightness, ctx.sampleRate)) + 'Hz', 'warn'); }
+    else candidate = 0;
+    if (speaking) {
+      speechMs += frameMs;
+      const finished = silenceMs >= SILENCE_HOLD_MS, tooLong = speechMs >= MAX_UTTERANCE_MS;
+      if (finished || tooLong) {
+        const accept = voicedMs >= MIN_UTTERANCE_MS;
+        log((accept ? 'ACCEPT' : 'DISCARD') + '  voiced=' + Math.round(voicedMs) + 'ms  total=' + Math.round(speechMs) + 'ms',
+            accept ? 'ok' : 'warn');
+        speaking = false; speechMs = voicedMs = silenceMs = 0;
+      }
+    }
+    const now = performance.now();
+    if (now - peakAt > 5000) { peak = 0; peakAt = now; }
+    if (rms > peak) peak = rms;
+    if (frames % 6 === 0) {
+      $('frames').textContent = frames;
+      $('rms').textContent = rms.toFixed(5);
+      $('peak').textContent = peak.toFixed(5);
+      $('floor').textContent = floor.toFixed(5);
+      $('start').textContent = startAt.toFixed(5);
+      $('cont').textContent = contAt.toFixed(5);
+      $('state').textContent = speaking ? 'SPEAKING' : (candidate ? 'candidate ' + candidate + '/' + START_FRAMES : 'listening');
+      $('bright').textContent = lastBright.toFixed(3);
+      $('hz').textContent = Math.round(dominantHz(lastBright, ctx.sampleRate)) + ' Hz';
+      const vl = lastBright >= VOICE_BRIGHTNESS_MIN && lastBright <= VOICE_BRIGHTNESS_MAX;
+      $('voiced').innerHTML = '<span class="' + (vl ? 'ok' : 'bad') + '">' + (vl ? 'yes' : 'no') + '</span>';
+      $('fill').style.width = Math.min(100, (rms / 0.15) * 100) + '%';
+      $('mstart').style.left = Math.min(100, (startAt / 0.15) * 100) + '%';
+      $('mcont').style.left = Math.min(100, (contAt / 0.15) * 100) + '%';
+    }
+  };
+  log('listening — say "Hey Assistant, what time is it?" a few times', 'ok');
+  setTimeout(() => { if (frames === 0) log('NO FRAMES in 3s — the mic is delivering nothing', 'bad'); }, 3000);
+};
+</script>

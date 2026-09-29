@@ -1,0 +1,57 @@
+# Dependencies and build output
+node_modules/
+dist/
+.turbo/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Rust / Tauri. `target/` alone would not match a nested crate, so the
+# explicit path is here as well.
+target/
+apps/shell/src-tauri/target/
+# Tauri regenerates these capability schemas on every build.
+apps/shell/src-tauri/gen/
+
+# Secrets. .env.example is the tracked template; .env never is.
+.env
+.env.local
+.env.*.local
+
+# Local database files
+data/*.db
+data/*.db-*
+
+# Speech models. Gigabytes, and re-downloadable — see the README for the
+# whisper.cpp download commands.
+models/
+
+# Voice cloning workspace: virtualenv, the Applio checkout, pretrained
+# weights, the training corpus, checkpoints and the faiss index. 3.4 GB as of
+# 2026-09-01 and none of it is source. Listing the subdirectories individually
+# missed Applio/, dataset/ and audition/ as they appeared, so ignore the lot.
+voice-training/
+
+# Voice source recordings and design references dropped in the repo root
+# while building. Keep them locally; they do not belong in history.
+/*.wav
+/*.riv
+/animation.png
+
+# Generated speech clips
+speech-cache/
+*.tmp.wav
+
+# Editor and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.cache/
+
+# Staged for deletion (2026-09-21 cleanup)
+_trash/
+
+# Internal working notes — contains work account details, not for publication
+HANDOVER.md
+Voice_Assistant.docx

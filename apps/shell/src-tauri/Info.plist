@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <!-- Without these, macOS silently denies access instead of prompting. -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Assistant listens for your voice commands.</string>
+
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Assistant controls apps on your Mac to carry out your requests, such as playing music or opening applications.</string>
+
+    <key>NSContactsUsageDescription</key>
+    <string>Assistant looks up contacts so it can call or message the people you name.</string>
+
+    <!-- Menu-bar app: no Dock icon, no app switcher entry. -->
+    <key>LSUIElement</key>
+    <true/>
+  </dict>
+</plist>

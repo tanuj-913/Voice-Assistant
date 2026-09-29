@@ -1,0 +1,50 @@
+{
+  "name": "voice-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "pnpm run stop && pnpm run build:app && concurrently -n brain,ui,rvc,stt -c cyan,magenta,yellow,green --restart-tries 3 --restart-after 1500 \"pnpm run start:brain\" \"pnpm run start:ui\" \"pnpm run start:rvc\" \"pnpm run start:whisper\"",
+    "start:brain": "node --env-file=.env apps/brain/dist/index.js",
+    "start:ui": "pnpm --filter @assistant/face dev",
+    "stop": "node scripts/stop.mjs",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "eslint packages apps",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "build:app": "turbo run build --filter=@assistant/brain --filter=@assistant/face",
+    "preflight": "node scripts/doctor.mjs",
+    "start:rvc": "node scripts/rvc.mjs",
+    "start:whisper": "node scripts/whisper.mjs"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css,yaml,yml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.4.0",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.9.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.4.1",
+    "prettier": "^3.9.6",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "turbo": "^2.10.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
+  }
+}
